@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +91,28 @@ class BeanMapOnRootLevelTest {
         assertThat(result.keySet(), contains("medium"));
         assertThat(result.get("medium").getName(), equalTo("med"));
         assertThat(result.get("medium").getLore(), contains("Test", "Toast"));
+    }
+
+    @Test
+    void shouldExportValuesAsEmptyMap() throws IOException {
+        String yaml = "medium:\n"
+            + "\n    name: \"med\"\n"
+            + "\n    lore:\n"
+            + "\n      - \"Test\""
+            + "\n      - \"Toast\"";
+        Path tempFile = TestUtils.createTemporaryFile(tempDir);
+        Files.write(tempFile, yaml.getBytes());
+
+        SettingsManager settingsManager = SettingsManagerBuilder.withYamlFile(tempFile)
+            .configurationData(TestSettingsHolder.class)
+            .create();
+
+        // when
+        settingsManager.setProperty(TestSettingsHolder.INFO, new HashMap<>());
+        settingsManager.save();
+
+        // then
+        assertThat(Files.readAllLines(tempFile), contains("{}"));
     }
 
     public static final class TestSettingsHolder implements SettingsHolder {

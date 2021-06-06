@@ -96,10 +96,12 @@ public class YamlFileResource implements PropertyResource {
             return;
         }
 
-        if (value instanceof Map<?, ?> && !((Map<?, ?>) value).isEmpty()) {
+        if (value instanceof Map<?, ?>) {
             final String pathPrefix = path.isEmpty() ? "" : path + ".";
+            final Map<String, ?> mapValue = (Map<String, ?>) value;
+            // todo lj need to handle empty map
 
-            for (Map.Entry<String, ?> entry : ((Map<String, ?>) value).entrySet()) {
+            for (Map.Entry<String, ?> entry : mapValue.entrySet()) {
                 exportValue(writer, pathTraverser, pathPrefix + entry.getKey(), entry.getValue());
             }
         } else {
