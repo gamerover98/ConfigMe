@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -131,5 +133,64 @@ class StringPropertyTest {
                     "    First row\n\n" +
                     "    Second row\n" +
                     "    Third row\n"));
+    }
+
+    @Test
+    void shouldWriteMultipleLines() throws IOException {
+        // given
+        Path configFile = TestUtils.copyFileFromResources("/empty_file.yml", temporaryFolder);
+        PropertyResource resource = new YamlFileResource(configFile);
+
+        Property<String> l1Property = PropertyInitializer.newProperty("l1", "");
+        Property<String> l2Property = PropertyInitializer.newProperty("l2", "");
+        Property<String> l3Property = PropertyInitializer.newProperty("l3", "");
+        Property<String> l4Property = PropertyInitializer.newProperty("l4", "");
+
+        ConfigurationData configurationData =
+            ConfigurationDataBuilder.createConfiguration(
+                Stream.of(l1Property, l2Property, l3Property, l4Property)
+                    .collect(Collectors.toList()));
+        configurationData.initializeValues(resource.createReader());
+
+        // set a multiple-line strings
+        configurationData.setValue(l1Property, "First row\nSecond row");
+        configurationData.setValue(l2Property, "First row\r\b\f\nSecond row ");
+        configurationData.setValue(l3Property, "First text\tSecond text");
+        configurationData.setValue(l4Property, "[{\r\nenabled : true \r\n}]");
+
+        // when
+        resource.exportProperties(configurationData);
+
+        // then
+        PropertyReader propertyReader = resource.createReader();
+        String l1 = l1Property.determineValue(propertyReader).getValue();
+        assertThat(l1, equalTo("First row\nSecond row"));
+
+        String l2 = l2Property.determineValue(propertyReader).getValue();
+        assertThat(l2, equalTo("First row\nSecond row"));
+
+        String l3 = l3Property.determineValue(propertyReader).getValue();
+        assertThat(l3, equalTo("First text    Second text"));
+
+        String l4 = l4Property.determineValue(propertyReader).getValue();
+        assertThat(l4, equalTo("[{\nenabled : true\n}]"));
+
+        byte[] fileBytes = Files.readAllBytes(configFile);
+        String fileContent = new String(fileBytes);
+
+        assertThat(
+            fileContent,
+            equalTo(
+                "l1: |-\n" +
+                    "    First row\n" +
+                    "    Second row\n" +
+                    "l2: |-\n" +
+                    "    First row\n" +
+                    "    Second row\n" +
+                    "l3: First text    Second text\n" +
+                    "l4: |-\n" +
+                    "    [{\n" +
+                    "    enabled : true\n" +
+                    "    }]\n"));
     }
 }
